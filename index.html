@@ -38,8 +38,6 @@
     <script src="https://unpkg.com/konva@7.2.5/konva.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vue-konva@2.1.7/umd/vue-konva.min.js"></script>
     <script>
-      var selectedShape = null;
-
       var width = window.innerWidth / 2;
       var height = window.innerHeight / 2;
 
@@ -149,8 +147,6 @@
           handleStageClick(e) {
             const selectionRectangle = this.$refs.selectionRectangle.getNode();
 
-            selectedShape = null;
-
             if (selectionRectangle.visible()) {
               return;
             }
@@ -186,14 +182,18 @@
               const nodes = tr.nodes().concat([e.target]);
               tr.nodes(nodes);
             }
-            selectedShape = e.target;
 
             layer.draw();
           },
           changeColorClick() {
-            if (selectedShape == null) return;
+            const tr = this.$refs.transformer.getNode();
+            const selectedNodes = tr.nodes();
 
-            selectedShape.fill(this.color);
+            if (selectedNodes.length == 0) return;
+
+            selectedNodes.forEach(n => {
+              n.fill(this.color);
+            });
 
             const layer = this.$refs.layer.getNode();
 
