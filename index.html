@@ -1,168 +1,205 @@
-<!DOCTYPE html>
 <html>
   <head>
-    <script src="https://unpkg.com/konva@7.2.5/konva.min.js"></script>
     <meta charset="utf-8" />
-    <title>Konva Select and Transform Demo</title>
-    <style>
-      body {
-        margin: 0;
-        padding: 0;
-        overflow: hidden;
-        background-color: #f0f0f0;
-      }
-      #container {
-        border: 2px solid red;
-        width: 50%;
-      }
-    </style>
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no"
+    />
+    <meta http-equiv="x-ua-compatible" content="ie=edge" />
   </head>
-
   <body>
-    <div id="container"></div>
-    <br />Color: <input id="color" value="#00ff00" /><button
-      onclick="changeColor();"
-    >
-      Change
-    </button>
+    <div id="app">
+      <v-stage
+        ref="stage"
+        :config="configKonva"
+        @mousedown="handleStageMouseDown"
+        @mousemove="handleStageMouseMove"
+        @mouseup="handleStageMouseUp"
+        @click="handleStageClick"
+      >
+        <v-layer ref="layer">
+          <v-rect
+            :config="selectionRectangleConfig"
+            ref="selectionRectangle"
+          ></v-rect>
+          <v-transformer ref="transformer" />
+        </v-layer>
+      </v-stage>
+
+      <br />Color: <input id="color" v-model="color" value="color" /><button
+        @click="changeColorClick"
+      >
+        Change
+      </button>
+    </div>
+
+    <!--1. Link Vue Javascript & Konva-->
+    <script src="https://unpkg.com/vue/dist/vue.js"></script>
+    <script src="https://unpkg.com/konva@7.2.5/konva.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue-konva@2.1.7/umd/vue-konva.min.js"></script>
     <script>
-      function getColor() {
-        return document.getElementById('color').value;
-      }
-
-      function changeColor() {
-        if (selectedShapre == null) return;
-
-        selectedShapre.fill(getColor());
-        layer.batchDraw();
-      }
-
-      var selectedShapre = null;
+      var selectedShape = null;
 
       var width = window.innerWidth / 2;
       var height = window.innerHeight / 2;
 
-      var stage = new Konva.Stage({
-        container: 'container',
-        width: width,
-        height: height,
-      });
+      var x1, x2, y1, y2;
 
-      var layer = new Konva.Layer();
-      stage.add(layer);
+      new Vue({
+        el: '#app',
+        data: {
+          configKonva: {
+            width: width,
+            height: height,
+          },
+          selectionRectangleConfig: {
+            fill: null,
+            stroke: 'black',
+            strokeWidth: 2,
+            visible: false,
+          },
+          color: '#00FF00',
+        },
+        methods: {
+          handleStageMouseDown(e) {
+            const stage = e.target.getStage();
 
-      var tr = new Konva.Transformer();
-      layer.add(tr);
+            if (e.target !== stage) {
+              return;
+            }
 
-      layer.draw();
+            x1 = stage.getPointerPosition().x;
+            y1 = stage.getPointerPosition().y;
+            x2 = stage.getPointerPosition().x;
+            y2 = stage.getPointerPosition().y;
 
-      var selectionRectangle = new Konva.Rect({
-        fill: getColor(),
-      });
-      layer.add(selectionRectangle);
+            const selectionRectangle = this.$refs.selectionRectangle.getNode();
 
-      var x1, y1, x2, y2;
+            selectionRectangle.visible(true);
+            selectionRectangle.width(0);
+            selectionRectangle.height(0);
 
-      stage.on('mousedown touchstart', (e) => {
-        if (e.target !== stage) {
-          return;
-        }
-        x1 = stage.getPointerPosition().x;
-        y1 = stage.getPointerPosition().y;
-        x2 = stage.getPointerPosition().x;
-        y2 = stage.getPointerPosition().y;
+            const layer = this.$refs.layer.getNode();
 
-        selectionRectangle.visible(true);
-        selectionRectangle.width(0);
-        selectionRectangle.height(0);
-        selectionRectangle.fill(getColor());
-        layer.draw();
-      });
+            layer.draw();
+          },
+          handleStageMouseMove(e) {
+            const selectionRectangle = this.$refs.selectionRectangle.getNode();
 
-      stage.on('mousemove touchmove', () => {
-        if (!selectionRectangle.visible()) {
-          return;
-        }
-        x2 = stage.getPointerPosition().x;
-        y2 = stage.getPointerPosition().y;
+            if (!selectionRectangle.visible()) {
+              return;
+            }
 
-        selectionRectangle.setAttrs({
-          x: Math.min(x1, x2),
-          y: Math.min(y1, y2),
-          width: Math.abs(x2 - x1),
-          height: Math.abs(y2 - y1),
-          stroke: 'red',
-          fill: null,
-        });
-        layer.batchDraw();
-      });
+            const stage = e.target.getStage();
 
-      stage.on('mouseup touchend', () => {
-        if (!selectionRectangle.visible()) {
-          return;
-        }
+            x2 = stage.getPointerPosition().x;
+            y2 = stage.getPointerPosition().y;
 
-        setTimeout(() => {
-          selectionRectangle.visible(false);
-          layer.batchDraw();
-        });
+            selectionRectangle.setAttrs({
+              x: Math.min(x1, x2),
+              y: Math.min(y1, y2),
+              width: Math.abs(x2 - x1),
+              height: Math.abs(y2 - y1),
+            });
 
-        var shapes = stage.find('.rect').toArray();
-        var box = selectionRectangle.getClientRect();
-        var selected = shapes.filter((shape) =>
-          Konva.Util.haveIntersection(box, shape.getClientRect())
-        );
+            const layer = this.$refs.layer.getNode();
 
-        tr.nodes(selected);
+            layer.batchDraw();
+          },
+          handleStageMouseUp(e) {
+            const selectionRectangle = this.$refs.selectionRectangle.getNode();
 
-        if (selected.length == 0) {
-          var newRect = new Konva.Rect({
-            x: selectionRectangle.x(),
-            y: selectionRectangle.y(),
-            width: selectionRectangle.width(),
-            height: selectionRectangle.height(),
-            fill: getColor(),
-            draggable: true,
-            name: 'rect',
-          });
-          layer.add(newRect);
-        }
-        layer.batchDraw();
-      });
+            if (!selectionRectangle.visible()) {
+              return;
+            }
 
-      stage.on('click tap', function (e) {
-        if (selectionRectangle.visible()) {
-          return;
-        }
+            const layer = this.$refs.layer.getNode();
 
-        if (e.target === stage) {
-          tr.nodes([]);
-          layer.draw();
-          selectedShapre = null;
-          return;
-        }
+            setTimeout(() => {
+              selectionRectangle.visible(false);
+              layer.batchDraw();
+            });
 
-        if (!e.target.hasName('rect')) {
-          selectedShapre = null;
-          return;
-        }
+            const stage = e.target.getStage();
 
-        const metaPressed = e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
-        const isSelected = tr.nodes().indexOf(e.target) >= 0;
+            var shapes = stage.find('.rect').toArray();
+            var box = selectionRectangle.getClientRect();
+            var selected = shapes.filter((shape) =>
+              Konva.Util.haveIntersection(box, shape.getClientRect())
+            );
 
-        if (!metaPressed && !isSelected) {
-          tr.nodes([e.target]);
-        } else if (metaPressed && isSelected) {
-          const nodes = tr.nodes().slice();
+            const tr = this.$refs.transformer.getNode();
 
-          nodes.splice(nodes.indexOf(e.target), 1);
-          tr.nodes(nodes);
-        } else if (metaPressed && !isSelected) {
-          const nodes = tr.nodes().concat([e.target]);
-          tr.nodes(nodes);
-        }
-        selectedShapre = e.target;
-        layer.draw();
+            tr.nodes(selected);
+
+            if (selected.length == 0) {
+              var newRect = new Konva.Rect({
+                x: selectionRectangle.x(),
+                y: selectionRectangle.y(),
+                width: selectionRectangle.width(),
+                height: selectionRectangle.height(),
+                fill: this.color,
+                draggable: true,
+                name: 'rect',
+              });
+              layer.add(newRect);
+            }
+            layer.batchDraw();
+          },
+          handleStageClick(e) {
+            const selectionRectangle = this.$refs.selectionRectangle.getNode();
+
+            selectedShape = null;
+
+            if (selectionRectangle.visible()) {
+              return;
+            }
+
+            const tr = this.$refs.transformer.getNode();
+            const layer = this.$refs.layer.getNode();
+
+            const stage = e.target.getStage();
+
+            if (e.target === stage) {
+              tr.nodes([]);
+              layer.draw();
+
+              return;
+            }
+
+            if (!e.target.hasName('rect')) {
+              return;
+            }
+
+            const metaPressed =
+              e.evt.shiftKey || e.evt.ctrlKey || e.evt.metaKey;
+            const isSelected = tr.nodes().indexOf(e.target) >= 0;
+
+            if (!metaPressed && !isSelected) {
+              tr.nodes([e.target]);
+            } else if (metaPressed && isSelected) {
+              const nodes = tr.nodes().slice();
+
+              nodes.splice(nodes.indexOf(e.target), 1);
+              tr.nodes(nodes);
+            } else if (metaPressed && !isSelected) {
+              const nodes = tr.nodes().concat([e.target]);
+              tr.nodes(nodes);
+            }
+            selectedShape = e.target;
+
+            layer.draw();
+          },
+          changeColorClick() {
+            if (selectedShape == null) return;
+
+            selectedShape.fill(this.color);
+
+            const layer = this.$refs.layer.getNode();
+
+            layer.batchDraw();
+          },
+        },
       });
     </script>
   </body>
